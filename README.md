@@ -1,6 +1,6 @@
 # awesome_wm_simple_widgets
 Very simple interactive widgets for awesome wm.  
-Usage:  
+`Usage:  
     Copy desired widget directory to ~/.config/awesome  
     Add to your rc.lua:  
 ```lua
@@ -19,3 +19,4 @@ Usage:
         ...
 ```
     Adjust widget's variables and its code.
+`
