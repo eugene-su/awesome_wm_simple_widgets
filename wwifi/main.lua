@@ -43,7 +43,7 @@ local ICON_BAD = awful.util.getdir('config')
 local ICON_OFF = awful.util.getdir('config')
         ..  'wwifi/no_connection.png'
 local TEXT_COLOR = 'Aquamarine'
-local DEFAULT_TIP = 'Нет информации о подключении.'
+local DEFAULT_TIP = 'Нет информации о подключении'
 
 ------------------------------------------
 
@@ -190,6 +190,11 @@ function WBody:update_icon(text)
 end
 
 function WBody:update_tooltip()
+    if wifi_parameters['State'] == 'idle' then
+        self.tooltip.markup = DEFAULT_TIP
+        do return end
+    end
+
     local text =
     'Сила сигнала:\t\t' .. wifi_parameters['Strength']
     .. '\nSSID точки доступа:\t<span color="GreenYellow"><b>'
