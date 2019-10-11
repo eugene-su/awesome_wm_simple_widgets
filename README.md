@@ -3,20 +3,20 @@ Very simple interactive widgets for awesome wm.
 
 Usage:
 
-Copy wbacklight widget directory to ~/.config/awesome
+Copy desired widget directory to ~/.config/awesome
 Add to your rc.lua:
 ```lua
         ...
-        -- Backlight widget
-        local wbacklight = require("wbacklight")
-        local mybacklight = wbacklight()
+        -- Short tip about the widget
+        local %widgetname% = require("%widgetname%")
+        local my%widgetname% = %widgetname%()
         ...
 ```
-Then inscribe 'mybacklight.widget' to s.mywibox:
+Then inscribe 'my%widgetname%.widget' to s.mywibox:
 ```lua
         ...
         mysystray,
-        mybacklight.widget,
+        my%widgetname%.widget,
         mytextclock
         ...
 ```
