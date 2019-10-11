@@ -89,21 +89,21 @@ local current = 0
 local WBody = {}
 
 function WBody:new()
-    return setmetatable({}, {__index=self}):init()
+    return setmetatable({}, { __index=self }):init()
 end
 
 function WBody:init()
     self.widget = wibox.widget {
-        layout = wibox.layout.fixed.horizontal,
+        layout=wibox.layout.fixed.horizontal,
         {
-            widget = wibox.widget.imagebox,
-            image = ICON_PATH,
-            id = 'icon'
+            widget=wibox.widget.imagebox,
+            image=ICON_PATH,
+            id='icon'
         },
         {
-            widget = wibox.widget.textbox,
-            markup = nil,
-            id = 'text'
+            widget=wibox.widget.textbox,
+            markup=nil,
+            id='text'
         }
     }
     
