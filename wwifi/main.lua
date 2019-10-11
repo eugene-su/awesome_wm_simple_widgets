@@ -35,17 +35,17 @@ local setmetatable = setmetatable
 local CHECKING_INTERVAL = 20
 local CMD_IP = 'wget --timeout=5 -O - -q icanhazip.com'
 local CMD_AP = "connmanctl services | grep '*' | awk '{print $3}'"
-local CMD_CONNMAN = 'st -e connmanctl'
-local ICON_ON = awful.util.getdir('config') ..
-                            'wwifi/connected.png'
-local ICON_BAD = awful.util.getdir('config') ..
-                            'wwifi/bad_connection.png'
-local ICON_OFF = awful.util.getdir('config') ..
-                            'wwifi/no_connection.png'
+local CMD_CONNMAN = 'st connmanctl'
+local ICON_ON = awful.util.getdir('config')
+        .. 'wwifi/connected.png'
+local ICON_BAD = awful.util.getdir('config')
+        .. 'wwifi/bad_connection.png'
+local ICON_OFF = awful.util.getdir('config')
+        ..  'wwifi/no_connection.png'
 local TEXT_COLOR = 'Aquamarine'
 local DEFAULT_TIP = 'Нет информации о подключении.'
 
--------- connman's output parser ---------
+------------------------------------------
 
 function connman_parser(text)
   local wifi_parameters = {}
@@ -76,35 +76,36 @@ function connman_parser(text)
   return wifi_parameters
 end
 
+local ip = ''
+local access_point = ''
+local wifi_parameters = {}
+
 -------------- widget body ---------------
 
-local wbody = {}
+local WBody = {}
 
-function wbody:new()
+function WBody:new()
     return setmetatable({}, { __index=self }):init()
 end
 
-function wbody:init()
-    self.wifi_parameters = {}
-    self.ap = ''
-    self.ip = ''
+function WBody:init()
     self.widget = wibox.widget {
-        layout = wibox.layout.fixed.horizontal,
+        layout=wibox.layout.fixed.horizontal,
         {
-            widget = wibox.widget.imagebox,
-            image = icon_on,
-            id = 'icon'
+            widget=wibox.widget.imagebox,
+            image=icon_on,
+            id='icon'
         },
         {
-            widget = wibox.widget.separator,
-            orientation = 'vertical',
-            forced_width = 5,
-            opacity = 0
+            widget=wibox.widget.separator,
+            orientation='vertical',
+            forced_width=5,
+            opacity=0
         },
         {
-            widget = wibox.widget.textbox,
-            markup = nil,
-            id = 'text'
+            widget=wibox.widget.textbox,
+            markup=nil,
+            id='text'
         }
     }
     self.tooltip = awful.tooltip { objects={ self.widget },
@@ -131,31 +132,29 @@ function wbody:init()
                   autostart=true,
                   callback=function() self:get() end
     }
+
     self:get()
     self:get_ip()
-
     return self
 end
 
-function wbody:get()
+function WBody:get()
     awful.spawn.easy_async_with_shell(
         CMD_AP,
         function(stdout)
-            self.ap = string.gsub(stdout, '\n', '')
+            access_point = string.gsub(stdout, '\n', '')
+            if #access_point == 0 then
+                self:update_icon('idle')
+                self.tooltip.markup = DEFAULT_TIP
+                do return end
+            end
+
             awful.spawn.easy_async_with_shell(
-                    'connmanctl services ' .. self.ap,
+                    'connmanctl services ' .. access_point,
                 function(stdout)
-                    self.wifi_parameters = connman_parser(stdout)
-
-                    if self.wifi_parameters['State'] == 'idle' then
-                        self:update_icon('idle')
-                        self:update_text(self.wifi_parameters['Strength'])
-                        self.tooltip.markup = DEFAULT_TIP
-                        do return end 
-                    end
-
-                    self:update_text(self.wifi_parameters['Strength'])
-                    self:update_icon(self.wifi_parameters['State'])
+                    wifi_parameters = connman_parser(stdout)
+                    self:update_text(wifi_parameters['Strength'])
+                    self:update_icon(wifi_parameters['State'])
                     self.widget:emit_signal('widget::redraw_needed')
                     self:update_tooltip()
                 end
@@ -164,21 +163,21 @@ function wbody:get()
     )
 end
 
-function wbody:get_ip()
+function WBody:get_ip()
     awful.spawn.easy_async_with_shell(
         CMD_IP,
         function(stdout)
-            self.ip = string.gsub(stdout, '\n', '')
+            ip = string.gsub(stdout, '\n', '')
         end
     )
 end
 
-function wbody:update_text(text)
+function WBody:update_text(text)
     self.widget:get_children_by_id('text')[1].markup
             = string.format('<span color="%s">%s</span>', TEXT_COLOR, text)
 end
 
-function wbody:update_icon(text)
+function WBody:update_icon(text)
     local icon = ''
     if text == 'online' then
         icon = ICON_ON
@@ -190,28 +189,28 @@ function wbody:update_icon(text)
     self.widget:get_children_by_id('icon')[1].image = icon 
 end
 
-function wbody:update_tooltip()
+function WBody:update_tooltip()
     local text =
-    'Сила сигнала:\t\t' .. self.wifi_parameters['Strength'] ..
-    '\nSSID точки доступа:\t<span color="GreenYellow"><b>' ..
-        self.wifi_parameters['Name'] .. '</b></span>' ..
-    '\nСостояние подключения:\t' .. self.wifi_parameters['State'] ..
-    '\nПолученный от ТД IPv4:\t' .. self.wifi_parameters['IPv4']['Address'] ..
-    '\nТип шифрования ключа:\t' .. self.wifi_parameters['Security'][1] ..
-    '\nАвтоподключение:\t' .. self.wifi_parameters['AutoConnect'] ..
-    '\nMac-адрес ТД:\t\t' .. self.wifi_parameters['IPv4']['Address'] ..
-    '\nGateway:\t\t' .. self.wifi_parameters['IPv4']['Gateway'] ..
-    '\nDNS ТД:\t\t\t' .. self.wifi_parameters['Nameservers'][1] .. 
-    '\n\t\t\t' .. self.wifi_parameters['Nameservers'][2]
+    'Сила сигнала:\t\t' .. wifi_parameters['Strength']
+    .. '\nSSID точки доступа:\t<span color="GreenYellow"><b>'
+    ..  wifi_parameters['Name'] .. '</b></span>'
+    ..  '\nСостояние подключения:\t' .. wifi_parameters['State']
+    .. '\nПолученный от ТД IPv4:\t' .. wifi_parameters['IPv4']['Address']
+    .. '\nТип шифрования ключа:\t' .. wifi_parameters['Security'][1]
+    .. '\nАвтоподключение:\t' .. wifi_parameters['AutoConnect']
+    .. '\nMac-адрес ТД:\t\t' .. wifi_parameters['IPv4']['Address']
+    .. '\nGateway:\t\t' .. wifi_parameters['IPv4']['Gateway']
+    .. '\nDNS ТД:\t\t\t' .. wifi_parameters['Nameservers'][1]
+    .. '\n\t\t\t' .. wifi_parameters['Nameservers'][2]
 
-    if self.ip ~= '' or nil then
-        text = text ..
-            '\nМой внешний ip:\t\t<span color="GreenYellow"><b>' ..
-            self.ip .. '</b></span>'
+    if ip ~= '' and ip ~= nil then
+        text = text
+                .. '\nМой внешний ip:\t\t<span color="GreenYellow"><b>'
+                .. ip .. '</b></span>'
     end
 
     self.tooltip.markup = text
 end
 
-return setmetatable(wbody, { __call=wbody.new })
+return setmetatable(WBody, { __call=WBody.new })
 
