@@ -57,8 +57,9 @@ local COLOR_HOT = 'Red'
 local COLOR_MID = 'Khaki'
 local COLOR_COOL = 'LightSteelBlue'
 local CHECKING_INTERVAL = 18
-local ICON_TEMP = awful.util.getdir('config') .. 'wcputemp/iron.png'
-local CMD_INFO = 'st -e acpi -V'
+local ICON_TEMP = awful.util.getdir('config')
+        .. 'wcputemp/iron.png'
+local CMD_INFO = 'st zsh -c "sensors; zsh"'
 local SOURCE = '/sys/class/thermal/thermal_zone5/temp'
 
 ------------------------------------------
@@ -94,10 +95,10 @@ function WBody:init()
             id='icon'
         },
         {
-            widget = wibox.widget.separator,
-            orientation = 'vertical',
-            forced_width = 2,
-            opacity = 0
+            widget=wibox.widget.separator,
+            orientation='vertical',
+            forced_width=2,
+            opacity=0
         },
         { 
             widget=wibox.widget.textbox,
@@ -105,10 +106,10 @@ function WBody:init()
             id='text'
         },
         {
-            widget = wibox.widget.separator,
-            orientation = 'vertical',
-            forced_width = 5,
-            opacity = 0
+            widget=wibox.widget.separator,
+            orientation='vertical',
+            forced_width=5,
+            opacity=0
         },
 
     }
