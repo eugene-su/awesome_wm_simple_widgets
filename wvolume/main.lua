@@ -53,10 +53,10 @@ local CMD_VOLUME = "amixer get Master | grep 'Right:' |\
         awk -F'[][%]' '{ print $2 }'"
 local CMD_MUTE = "amixer get Master | grep 'Right:' |\
         awk -F'[][]' '{ print $4 }'"
-local ICON_ON = awful.util.getdir('config') ..
-        'wvolume/volume_on.png'
-local ICON_OFF = awful.util.getdir('config') ..
-        'wvolume/volume_off.png'
+local ICON_ON = awful.util.getdir('config')
+        ..  'wvolume/volume_on.png'
+local ICON_OFF = awful.util.getdir('config')
+        ..  'wvolume/volume_off.png'
 local TEXT_COLOR = 'PaleGreen'
 
 -------------- widget body ---------------
@@ -94,7 +94,8 @@ function WBody:init()
             awful.button(
                 {}, 1,
                 function()
-                    awful.util.spawn('st -e alsamixer', false)
+                    awful.util.spawn('st alsamixer', false)
+                    self:get()
                 end
             ),
             awful.button(
