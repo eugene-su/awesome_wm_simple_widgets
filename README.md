@@ -1,8 +1,8 @@
 # awesome_wm_simple_widgets
 Very simple interactive widgets for awesome wm.  
-`Usage:  
-    Copy desired widget directory to ~/.config/awesome  
-    Add to your rc.lua:  
+`Usage:`  
+`    Copy desired widget directory to ~/.config/awesome`  
+`    Add to your rc.lua:`  
 ```lua
         ...
         -- Short tip about the widget
@@ -10,7 +10,7 @@ Very simple interactive widgets for awesome wm.
         local my%widgetname% = %widgetname%()
         ...
 ```
-    Then inscribe 'my%widgetname%.widget' to s.mywibox:  
+`    Then inscribe 'my%widgetname%.widget' to s.mywibox:`  
 ```lua
         ...
         mysystray,
@@ -18,5 +18,4 @@ Very simple interactive widgets for awesome wm.
         mytextclock
         ...
 ```
-    Adjust widget's variables and its code.
-`
+`    Adjust widget's variables and its code.`
