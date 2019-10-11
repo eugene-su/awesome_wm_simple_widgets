@@ -3,8 +3,8 @@ Very simple interactive widgets for awesome wm.
 
 Usage:
 
-copy wbacklight widget directory to ~/.config/awesome
-add to your rc.lua:
+Copy wbacklight widget directory to ~/.config/awesome
+Add to your rc.lua:
 ```lua
         ...
         -- Backlight widget
