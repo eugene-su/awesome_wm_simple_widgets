@@ -1,4 +1,4 @@
-# awesome_wm_simple_widgets
+## awesome_wm_simple_widgets
 Very simple interactive widgets for awesome wm.  
 ![screenshot](/misc/screenshot.png)  
 Usage:  
