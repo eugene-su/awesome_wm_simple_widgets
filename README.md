@@ -1,6 +1,7 @@
 # awesome_wm_simple_widgets
 Very simple interactive widgets for awesome wm.
-usage:
+
+Usage:
     copy wbacklight widget directory to ~/.config/awesome
     add to your rc.lua:
 ```lua
@@ -10,7 +11,7 @@ usage:
         local mybacklight = wbacklight()
         ...
 ```
-    then inscribe 'mybacklight.widget' to s.mywibox:
+Then inscribe 'mybacklight.widget' to s.mywibox:
 ```lua
         ...
         mysystray,
@@ -18,4 +19,4 @@ usage:
         mytextclock
         ...
 ```
-    adjust widget's variables and its code
+Adjust widget's variables and its code.
