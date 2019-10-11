@@ -59,9 +59,11 @@ local COLOR_FULL = 'GreenYellow'
 local COLOR_MID = 'Gold'
 local COLOR_LOW = 'Crimson'
 local LOW_CHARGE_ALERT = 7
-local ICON_BATTERY = awful.util.getdir('config') .. 'wpower/battery.png'
-local ICON_PLUG = awful.util.getdir('config') .. 'wpower/plug.png'
-local CMD_POWER_MANAGER = 'st -e vim /etc/default/tlp'
+local ICON_BATTERY = awful.util.getdir('config')
+        .. 'wpower/battery.png'
+local ICON_PLUG = awful.util.getdir('config')
+        .. 'wpower/plug.png'
+local CMD_POWER_MANAGER = 'st vim /etc/default/tlp'
 local AC_PREFIX = '/sys/class/power_supply/ACAD/'
 local BATTERY_PREFIX = '/sys/class/power_supply/BAT1/'
 local BTMOUSE_PREFIX
@@ -103,7 +105,7 @@ local function achtung(plug, percent)
     local percent = tonumber(percent)
     if plug == '0' and percent < LOW_CHARGE_ALERT then
         naughty.notify { title='Критический остаток заряда!',
-                         text='Подключите устройство к сети 220В',
+                         text='Подключите устройство к сети 220В.',
                          preset=naughty.config.presets.critical,
                          icon=ICON_PLUG,
                          icon_size=50,
@@ -196,24 +198,21 @@ function WBody:get()
 
     -- estimated battery life
     local h, m = math.modf(
-        values['charge_now'] /
-        average
+        values['charge_now'] / average
     )
     values['discharge_h'] = h
     values['discharge_m'] = math.floor(m * 60)
 
     -- estimated time till full charge
     h, m = math.modf(
-        (values['charge_full'] -
-        values['charge_now']) /
-        average
+        (values['charge_full'] - values['charge_now']) / average
     )
     values['charge_h'] = h
     values['charge_m'] = math.floor(m * 60)
 
     values['deterioration'] = math.floor(
-        values['charge_full'] /
-        values['charge_full_design'] * 100
+        values['charge_full']
+        / values['charge_full_design'] * 100
         + 0.5
     )
 
@@ -275,17 +274,19 @@ function WBody:update_tooltip()
     end
     
     local text =
-    'Текущий уровень\t\t' .. values['capacity'] .. ' %' ..
-    charge_state ..
-    '\nИзнос батареи\t\t' .. values['deterioration'] .. ' %' ..
-    '\nНапряжение\t\t' .. voltage .. ' В' ..
-    '\nСреднее потребление\t' .. average .. ' Вт⋅ч'
+    'Текущий уровень\t\t' .. values['capacity'] .. ' %'
+    .. charge_state
+    .. '\nИзнос батареи\t\t' .. values['deterioration'] .. ' %'
+    .. '\nНапряжение\t\t' .. voltage .. ' В'
+    .. '\nСреднее потребление\t' .. average .. ' Вт⋅ч'
 
     -- bluetooth mouse
     if next(btmouse_values) ~= nil
             and #btmouse_values['capacity'] ~= 0 then
-        text = text .. '\n\n' .. btmouse_values['model_name'] ..
-        '\nЗаряд устройства\t' .. btmouse_values['capacity'] .. ' %'
+        text = text
+                .. '\n\n' .. btmouse_values['model_name']
+                .. '\nЗаряд устройства\t'
+                        .. btmouse_values['capacity'] .. ' %'
     end
 
     self.tooltip.markup = text
