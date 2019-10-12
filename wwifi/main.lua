@@ -2,6 +2,7 @@
 
 Wifi watchdog widget for awesome wm.
 'connman' is required.
+Tested with Lua 5.3.5.
 Copyright (c) 2019 Evgeny.
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
