@@ -20,3 +20,5 @@ Usage:
         ...
 ```
 &ensp;&ensp;&ensp;&ensp;Adjust widget's variables and its code.
+
+Please, check out list of dependencies at the preamble of `main.lua` files for each module.
