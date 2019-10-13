@@ -54,17 +54,18 @@ local setmetatable = setmetatable
 
 ------------ config variables ------------
 
+local TERM = 'st'
 local CHECKING_INTERVAL = 25
 local ACCURACY = 8  -- number of checks for average consumption
 local COLOR_FULL = 'GreenYellow'
 local COLOR_MID = 'Gold'
 local COLOR_LOW = 'Crimson'
 local LOW_CHARGE_ALERT = 7
-local ICON_BATTERY = awful.util.getdir('config')
+local ICON_BATTERY = gears.filesystem.get_dir('config')
         .. 'wpower/battery.png'
-local ICON_PLUG = awful.util.getdir('config')
+local ICON_PLUG = gears.filesystem.get_dir('config')
         .. 'wpower/plug.png'
-local CMD_POWER_MANAGER = 'st vim /etc/default/tlp'
+local CMD_POWER_MANAGER = TERM .. ' vim /etc/default/tlp'
 local AC_PREFIX = '/sys/class/power_supply/ACAD/'
 local BATTERY_PREFIX = '/sys/class/power_supply/BAT1/'
 local BTMOUSE_PREFIX
@@ -147,10 +148,10 @@ function WBody:init()
 
     -- mouse buttons bindings
     self.widget:buttons(
-        awful.util.table.join(
+        gears.table.join(
             awful.button(
                 {}, 1,
-                function() awful.util.spawn(CMD_POWER_MANAGER, false) end
+                function() awful.spawn(CMD_POWER_MANAGER, false) end
             ),
             awful.button({}, 2, function() self:get() end),
             awful.button({}, 3, function() self:get() end)
