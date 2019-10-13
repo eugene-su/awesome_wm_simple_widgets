@@ -1,6 +1,7 @@
 --[[
 
 CPU temperature watchdog widget for awesome wm.
+'lm_sensors' is required.
 Tested with Lua 5.3.5.
 Copyright (c) 2019 Evgeny.
 
@@ -51,6 +52,8 @@ local setmetatable = setmetatable
 
 ------------ config variables ------------
 
+local TERM = 'st'
+local SHELL = 'zsh'
 local TEMP_HOT = 80
 local TEMP_MID = 65
 local TEMP_COOL = 50
@@ -58,13 +61,14 @@ local COLOR_HOT = 'Red'
 local COLOR_MID = 'Khaki'
 local COLOR_COOL = 'LightSteelBlue'
 local CHECKING_INTERVAL = 18
-local ICON_TEMP = awful.util.getdir('config')
+local ICON_TEMP = gears.filesystem.get_dir('config')
         .. 'wcputemp/iron.png'
-local CMD_INFO = 'st zsh -c "sensors; zsh"'
 local SOURCE = '/sys/class/thermal/thermal_zone5/temp'
 
 ------------------------------------------
 
+local cmd_info
+        = string.format('%s %s -c "sensors; %s"', TERM, SHELL, SHELL)
 local current_temp = ''
 
 local function achtung()
@@ -117,10 +121,10 @@ function WBody:init()
 
     -- mouse buttons bindings
     self.widget:buttons(
-        awful.util.table.join(
+        gears.table.join(
             awful.button(
                 {}, 1,
-                function() awful.util.spawn(CMD_INFO, false) end
+                function() awful.spawn(cmd_info, false) end
             ),
             awful.button({}, 2, function() self:get() end),
             awful.button({}, 3, function() self:get() end)
