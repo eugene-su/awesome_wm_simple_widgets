@@ -42,6 +42,7 @@ usage:
 --]]
 
 local awful = require('awful')
+local gears = require('gears')
 local wibox = require('wibox')
 local string = string
 local tonumber = tonumber
@@ -59,7 +60,7 @@ local WATCH_FILE
 local CMD_WATCHDOG
         = 'inotifywait -mq -e modify ' .. WATCH_FILE
 local ICON_PATH
-        = awful.util.getdir('config') .. 'wbacklight/bulb.png'
+        = gears.filesystem.get_dir('config') .. 'wbacklight/bulb.png'
 local COLOR = 'PeachPuff'
 
 ------------------------------------------
@@ -110,7 +111,7 @@ function WBody:init()
     
     -- mouse buttons bindings
     self.widget:buttons(
-        awful.util.table.join(
+        gears.table.join(
             awful.button(
                 {}, 2, 
                 function()
@@ -120,13 +121,13 @@ function WBody:init()
             awful.button(
                 {}, 4,
                 function()
-                    awful.util.spawn(CMD_INCREASE, false)
+                    awful.spawn(CMD_INCREASE, false)
                 end
             ),
             awful.button(
                 { }, 5,
                 function()
-                    awful.util.spawn(CMD_DECREASE, false)
+                    awful.spawn(CMD_DECREASE, false)
                 end
             )
         )
@@ -150,9 +151,9 @@ end
 
 function WBody:low_mid()
     if tonumber(current) > 1 then
-       awful.util.spawn(CMD_SET_LOW, false)
+       awful.spawn(CMD_SET_LOW, false)
     else
-       awful.util.spawn(CMD_SET_MID, false)
+       awful.spawn(CMD_SET_MID, false)
     end
 end
 
