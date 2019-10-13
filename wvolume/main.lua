@@ -49,14 +49,15 @@ local setmetatable = setmetatable
 
 ------------ config variables ------------
 
+local TERM = 'st'
 local CHECKING_INTERVAL = 15
 local CMD_VOLUME = "amixer get Master | grep 'Right:' |\
         awk -F'[][%]' '{ print $2 }'"
 local CMD_MUTE = "amixer get Master | grep 'Right:' |\
         awk -F'[][]' '{ print $4 }'"
-local ICON_ON = awful.util.getdir('config')
+local ICON_ON = gears.filesystem.get_dir('config')
         ..  'wvolume/volume_on.png'
-local ICON_OFF = awful.util.getdir('config')
+local ICON_OFF = gears.filesystem.get_dir('config')
         ..  'wvolume/volume_off.png'
 local TEXT_COLOR = 'PaleGreen'
 
@@ -91,32 +92,32 @@ function WBody:init()
 
     -- mouse buttons bindings
     self.widget:buttons(
-        awful.util.table.join(
+        gears.table.join(
             awful.button(
                 {}, 1,
                 function()
-                    awful.util.spawn('st alsamixer', false)
+                    awful.spawn(TERM .. ' alsamixer', false)
                     self:get()
                 end
             ),
             awful.button(
                 {}, 2,
                 function()
-                    awful.util.spawn('amixer set Master toggle', false)
+                    awful.spawn('amixer set Master toggle', false)
                     self:get()
                 end
             ),
             awful.button(
                 {}, 4,
                 function()
-                    awful.util.spawn('amixer set Master 5%+', false)
+                    awful.spawn('amixer set Master 5%+', false)
                     self:get()
                 end
             ),
             awful.button(
                 {}, 5,
                 function()
-                    awful.util.spawn('amixer set Master 5%-', false)
+                    awful.spawn('amixer set Master 5%-', false)
                     self:get()
                 end
             )
