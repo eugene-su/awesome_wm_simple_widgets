@@ -21,4 +21,14 @@ Usage:
 ```
 &ensp;&ensp;&ensp;&ensp;Adjust widget's variables and its code.
 
-Please, check out list of dependencies at the preamble of `main.lua` files for each module.
+Please, check out list of dependencies at the preamble of `main.lua` files for each module.  
+### Dependencies:  
+- wbacklight:
+  - `xbacklight`
+  - `inotify-tools`
+- wcputemp
+  - `lm_sensors`
+- wvolume:
+  - `alsa-utils`
+- wwifi:
+  - `connman`
