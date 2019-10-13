@@ -33,15 +33,16 @@ local setmetatable = setmetatable
 
 ------------ config variables ------------
 
+local TERM = 'st'
 local CHECKING_INTERVAL = 20
 local CMD_IP = 'wget --timeout=5 -O - -q icanhazip.com'
 local CMD_AP = "connmanctl services | grep '*' | awk '{print $3}'"
-local CMD_CONNMAN = 'st connmanctl'
-local ICON_ON = awful.util.getdir('config')
+local CMD_CONNMAN = TERM .. ' connmanctl'
+local ICON_ON = gears.filesystem.get_dir('config')
         .. 'wwifi/connected.png'
-local ICON_BAD = awful.util.getdir('config')
+local ICON_BAD = gears.filesystem.get_dir('config')
         .. 'wwifi/bad_connection.png'
-local ICON_OFF = awful.util.getdir('config')
+local ICON_OFF = gears.filesystem.get_dir('config')
         ..  'wwifi/no_connection.png'
 local TEXT_COLOR = 'Aquamarine'
 local DEFAULT_TIP = 'Нет информации о подключении'
@@ -118,10 +119,10 @@ function WBody:init()
 
     -- mouse buttons bindings
     self.widget:buttons(
-        awful.util.table.join(
+        gears.table.join(
             awful.button(
                 {}, 1,
-                function() awful.util.spawn(CMD_CONNMAN, false) end
+                function() awful.spawn(CMD_CONNMAN, false) end
             ),
             awful.button({}, 2, function() self:get(); self:get_ip() end),
             awful.button({}, 3, function() self:get(); self:get_ip() end)
