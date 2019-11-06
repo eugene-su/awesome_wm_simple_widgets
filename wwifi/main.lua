@@ -25,6 +25,25 @@ SOFTWARE.
 
 --]]
 
+---[[
+    -- debug
+    local naughty = require('naughty')
+    function n(text, title)
+    local title = title or '!'
+    local text = text or '-'
+    naughty.notify { title=tostring(title),
+                     text=tostring(text)
+    }
+end
+--]]
+
+-- upload
+-- ifstat | awk '/wlp2s0/ { print $8 }'
+-- download
+-- ifstat | awk '/wlp2s0/ { print $6 }'
+-- see runtime
+
+
 local awful = require('awful')
 local wibox = require('wibox')
 local gears = require('gears')
@@ -34,9 +53,8 @@ local setmetatable = setmetatable
 ------------ config variables ------------
 
 local TERM = 'st'
-local CHECKING_INTERVAL = 20
+local CHECKING_INTERVAL = 10
 local CMD_IP = 'wget --timeout=5 -O - -q icanhazip.com'
-local CMD_AP = "connmanctl services | grep '*' | awk '{print $3}'"
 local CMD_CONNMAN = TERM .. ' connmanctl'
 local ICON_ON = gears.filesystem.get_dir('config')
         .. 'wwifi/connected.png'
@@ -48,6 +66,11 @@ local TEXT_COLOR = 'Aquamarine'
 local DEFAULT_TIP = 'Нет информации о подключении'
 
 ------------------------------------------
+
+local ip = ''
+local access_point = ''
+local wifi_parameters = {}
+local current_ap = "connmanctl services | grep '*' | awk 'NR == 1 {print $3}'"
 
 function connman_parser(text)
   local wifi_parameters = {}
@@ -78,9 +101,22 @@ function connman_parser(text)
   return wifi_parameters
 end
 
-local ip = ''
-local access_point = ''
-local wifi_parameters = {}
+function read_param(...)
+    local vars = {...}
+    if #vars == 1 then 
+        value = wifi_parameters[vars[1]]
+    else
+        if wifi_parameters[vars[1]] == nil then
+            return '--'
+        end
+        value = wifi_parameters[vars[1]][vars[2]]
+    end
+    if value ~= nil then
+        return value
+    else
+        return '--'
+    end
+end
 
 -------------- widget body ---------------
 
@@ -106,7 +142,7 @@ function WBody:init()
         },
         {
             widget=wibox.widget.textbox,
-            markup=nil,
+            markup='',
             id='text'
         }
     }
@@ -142,12 +178,14 @@ end
 
 function WBody:get()
     awful.spawn.easy_async_with_shell(
-        CMD_AP,
+        current_ap,
         function(stdout)
+--n(stdout)
             access_point = string.gsub(stdout, '\n', '')
             if #access_point == 0 then
                 self:update_icon('idle')
                 self.tooltip.markup = DEFAULT_TIP
+                self.widget:get_children_by_id('text')[1].markup = ''
                 do return end
             end
 
@@ -155,8 +193,8 @@ function WBody:get()
                     'connmanctl services ' .. access_point,
                 function(stdout)
                     wifi_parameters = connman_parser(stdout)
-                    self:update_text(wifi_parameters['Strength'])
-                    self:update_icon(wifi_parameters['State'])
+                    self:update_text(read_param('Strength'))
+                    self:update_icon(read_param('State'))
                     self.widget:emit_signal('widget::redraw_needed')
                     self:update_tooltip()
                 end
@@ -192,23 +230,24 @@ function WBody:update_icon(text)
 end
 
 function WBody:update_tooltip()
-    if wifi_parameters['State'] == 'idle' then
+    if read_param('State') == 'idle' then
         self.tooltip.markup = DEFAULT_TIP
+        self.widget:get_children_by_id('text')[1].markup = ''
         do return end
     end
 
     local text =
-    'Сила сигнала:\t\t' .. wifi_parameters['Strength']
+    'Сила сигнала:\t\t' .. read_param('Strength')
     .. '\nSSID точки доступа:\t<span color="GreenYellow"><b>'
-    ..  wifi_parameters['Name'] .. '</b></span>'
-    ..  '\nСостояние подключения:\t' .. wifi_parameters['State']
-    .. '\nПолученный от ТД IPv4:\t' .. wifi_parameters['IPv4']['Address']
-    .. '\nТип шифрования ключа:\t' .. wifi_parameters['Security'][1]
-    .. '\nАвтоподключение:\t' .. wifi_parameters['AutoConnect']
-    .. '\nMac-адрес ТД:\t\t' .. wifi_parameters['IPv4']['Address']
-    .. '\nGateway:\t\t' .. wifi_parameters['IPv4']['Gateway']
-    .. '\nDNS ТД:\t\t\t' .. wifi_parameters['Nameservers'][1]
-    .. '\n\t\t\t' .. wifi_parameters['Nameservers'][2]
+    ..  read_param('Name') .. '</b></span>'
+    ..  '\nСостояние подключения:\t' .. read_param('State')
+    .. '\nПолученный от ТД IPv4:\t' .. read_param('IPv4', 'Address')
+    .. '\nТип шифрования ключа:\t' .. read_param('Security', 1)
+    .. '\nАвтоподключение:\t' .. read_param('AutoConnect')
+    .. '\nMac-адрес ТД:\t\t' .. read_param('Ethernet', 'Address')
+    .. '\nGateway:\t\t' .. read_param('IPv4', 'Gateway')
+    .. '\nDNS ТД:\t\t\t' .. read_param('Nameservers', 1)
+    .. '\n\t\t\t' .. read_param('Nameservers', 2)
 
     if ip ~= '' and ip ~= nil then
         text = text
