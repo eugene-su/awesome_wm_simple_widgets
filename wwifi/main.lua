@@ -25,64 +25,71 @@ SOFTWARE.
 
 --]]
 
----[[
+--[[
     -- debug
     local naughty = require('naughty')
-    function n(text, title)
-    local title = title or '!'
-    local text = text or '-'
-    naughty.notify { title=tostring(title),
-                     text=tostring(text)
+    local function n(text, title)
+    local ttl = title or '!'
+    local txt = text or '-'
+    naughty.notify { title=tostring(ttl),
+                     text=tostring(txt)
     }
 end
 --]]
-
--- upload
--- ifstat | awk '/wlp2s0/ { print $8 }'
--- download
--- ifstat | awk '/wlp2s0/ { print $6 }'
--- see runtime
-
 
 local awful = require('awful')
 local wibox = require('wibox')
 local gears = require('gears')
 local string = string
+local tostring = tostring
+local tonumber = tonumber
 local setmetatable = setmetatable
 
 ------------ config variables ------------
 
 local TERM = 'st'
 local CHECKING_INTERVAL = 10
-local CMD_IP = 'wget --timeout=5 -O - -q icanhazip.com'
-local CMD_CONNMAN = TERM .. ' connmanctl'
+local CMD_IP = 'curl ifconfig.co/ip'
+local CMD_COUNTRY = 'curl ifconfig.co/country'
 local ICON_ON = gears.filesystem.get_dir('config')
         .. 'wwifi/connected.png'
 local ICON_BAD = gears.filesystem.get_dir('config')
         .. 'wwifi/bad_connection.png'
 local ICON_OFF = gears.filesystem.get_dir('config')
         ..  'wwifi/no_connection.png'
-local TEXT_COLOR = 'Aquamarine'
+local TEXT_COLOR = 'Aquamarine' -- web color
 local DEFAULT_TIP = 'Нет информации о подключении'
 
 ------------------------------------------
 
-local ip = ''
-local access_point = ''
+local ip
+local country
+local tx_session
+local rx_session
+local new_tx_session
+local new_rx_session
+local tx_bandwidth
+local rx_bandwidth
+local wifi_dev
+local access_point
 local wifi_parameters = {}
-local current_ap = "connmanctl services | grep '*' | awk 'NR == 1 {print $3}'"
+local CURRENT_AP = "connmanctl services | grep '*' | awk 'NR == 1 {print $3}'"
+local CMD_CONNMAN = TERM .. ' connmanctl'
+local CMD_RX = "cat /proc/net/dev | awk '/wl/ { print $2 }'"
+local CMD_TX = "cat /proc/net/dev | awk '/wl/ { print $10 }'"
+local CMD_WIFI_DEV = "cat /proc/net/dev | awk '/wl/ { print substr($1, 1, length($1)-1) }'"
 
-function connman_parser(text)
-  local wifi_parameters = {}
+local function connman_parser(text)
+  local parameters = {}
   for line in text:gmatch('([^\r\n]+)') do
     if not string.match(line, '%[%s*%]')
         and string.match(line, '=') then
       if not string.match(line, '%[') then
-        key, value = string.match(line, '([%w%.]+) = (.+)')
-        wifi_parameters[key] = value
+        local key, value = string.match(line, '([%w%.]+) = (.+)')
+        parameters[key] = value
       else
         local nested_list = {}
-        key, list = string.match(
+        local key, list = string.match(
             line, '([%w%.]+) = %[ (.+) %]')
         if string.match(line, '^[^=]*=[^=]*$') then
           for no_key in string.gmatch(list, '([%w%.]+)') do
@@ -94,28 +101,102 @@ function connman_parser(text)
             nested_list[nested_key] = nested_value
           end
         end
-        wifi_parameters[key] = nested_list
+        parameters[key] = nested_list
       end
     end
   end
-  return wifi_parameters
+  return parameters
 end
 
-function read_param(...)
+local function read_param(...)
     local vars = {...}
-    if #vars == 1 then 
+    local value
+    if #vars == 1 then
         value = wifi_parameters[vars[1]]
     else
-        if wifi_parameters[vars[1]] == nil then
-            return '--'
+        if wifi_parameters[vars[1]] ~= nil then
+            value = wifi_parameters[vars[1]][vars[2]]
         end
-        value = wifi_parameters[vars[1]][vars[2]]
     end
-    if value ~= nil then
-        return value
+    if value == nil or value == '' then
+        value = '--'
+    end
+    return value
+end
+
+local function get_wifi_dev_name()
+    awful.spawn.easy_async_with_shell(
+        CMD_WIFI_DEV,
+        function(stdout_dev)
+            wifi_dev = string.gsub(stdout_dev, '\n', '')
+        end
+    )
+end
+
+local function get_bandwidth()
+    if wifi_dev ~= nil
+            and wifi_dev ~= '' then
+        awful.spawn.easy_async_with_shell(
+            CMD_TX,
+            function(stdout_tx)
+                new_tx_session = string.gsub(stdout_tx, '\n', '')
+            end
+        )
+        awful.spawn.easy_async_with_shell(
+            CMD_RX,
+            function(stdout_rx)
+                new_rx_session = string.gsub(stdout_rx, '\n', '')
+            end
+        )
+        -- for the first run
+        if tx_session == nil
+                or rx_session == nil then
+            tx_session = new_tx_session
+            rx_session = new_rx_session
+            do return end
+        end
     else
-        return '--'
+        tx_session = nil
+        rx_session = nil
+        tx_bandwidth = nil
+        rx_bandwidth = nil
+        do return end
     end
+    tx_bandwidth = tonumber(new_tx_session) - tonumber(tx_session)
+    rx_bandwidth = tonumber(new_rx_session) - tonumber(rx_session)
+    tx_session = new_tx_session
+    rx_session = new_rx_session
+end
+
+local function human_readable(size_in_bytes)
+    local value
+    local number = tonumber(size_in_bytes)
+    if number < 1024 then
+        value = tostring(number) .. ' b'
+    elseif number < 1048576
+            and number >= 1024 then
+        value = string.format('%.1f', number/1024) .. ' kb'
+    else
+        value = string.format('%.1f', number/1048576) .. ' mb'
+    end
+    return value
+end
+
+local function get_ip_info()
+    ip = nil
+    country = nil
+    awful.spawn.easy_async_with_shell(
+        CMD_IP,
+        function(stdout)
+            ip = string.gsub(stdout, '\n', '')
+        end
+    )
+    awful.spawn.easy_async_with_shell(
+        CMD_COUNTRY,
+        function(stdout)
+            country = string.gsub(stdout, '\n', '')
+        end
+    )
 end
 
 -------------- widget body ---------------
@@ -131,7 +212,7 @@ function WBody:init()
         layout=wibox.layout.fixed.horizontal,
         {
             widget=wibox.widget.imagebox,
-            image=icon_on,
+            image=ICON_ON,
             id='icon'
         },
         {
@@ -146,11 +227,14 @@ function WBody:init()
             id='text'
         }
     }
-    self.tooltip = awful.tooltip { objects={ self.widget },
-                                   border_color='#ebcb8b',
-                                   border_width=1,
-                                   bg='#2e3440',
-                                   markup=DEFAULT_TIP
+
+    self.tooltip = awful.tooltip
+    {
+        objects={ self.widget },
+        border_color='#ebcb8b',
+        border_width=1,
+        bg='#2e3440',
+        markup=DEFAULT_TIP
     }
 
     -- mouse buttons bindings
@@ -160,8 +244,8 @@ function WBody:init()
                 {}, 1,
                 function() awful.spawn(CMD_CONNMAN, false) end
             ),
-            awful.button({}, 2, function() self:get(); self:get_ip() end),
-            awful.button({}, 3, function() self:get(); self:get_ip() end)
+            awful.button({}, 2, function() self:get(); get_ip_info() end),
+            awful.button({}, 3, function() self:get(); get_ip_info() end)
         )
     )
 
@@ -171,18 +255,43 @@ function WBody:init()
                   callback=function() self:get() end
     }
 
+    -- bandwidth timer
+    self.bandwidth_timer = gears.timer
+    {
+        timeout=1,
+        autostart=false,
+        callback=function()
+            if read_param('State') ~= 'idle'
+                    and read_param('State') ~= '--' then
+                get_bandwidth()
+                self:update_tooltip()
+            end
+        end
+    }
+    self.widget:connect_signal('mouse::enter',
+                                function()
+                                    self.bandwidth_timer:start()
+                                end
+    )
+    self.widget:connect_signal('mouse::leave',
+                                function()
+                                    self.bandwidth_timer:stop()
+                                end
+    )
+
+    -- first shot
     self:get()
-    self:get_ip()
+    get_ip_info()
     return self
 end
 
 function WBody:get()
     awful.spawn.easy_async_with_shell(
-        current_ap,
-        function(stdout)
---n(stdout)
-            access_point = string.gsub(stdout, '\n', '')
+        CURRENT_AP,
+        function(stdout_1)
+            access_point = string.gsub(stdout_1, '\n', '')
             if #access_point == 0 then
+                wifi_parameters['State'] = 'idle'
                 self:update_icon('idle')
                 self.tooltip.markup = DEFAULT_TIP
                 self.widget:get_children_by_id('text')[1].markup = ''
@@ -191,8 +300,8 @@ function WBody:get()
 
             awful.spawn.easy_async_with_shell(
                     'connmanctl services ' .. access_point,
-                function(stdout)
-                    wifi_parameters = connman_parser(stdout)
+                function(stdout_2)
+                    wifi_parameters = connman_parser(stdout_2)
                     self:update_text(read_param('Strength'))
                     self:update_icon(read_param('State'))
                     self.widget:emit_signal('widget::redraw_needed')
@@ -201,15 +310,8 @@ function WBody:get()
             )
         end
     )
-end
-
-function WBody:get_ip()
-    awful.spawn.easy_async_with_shell(
-        CMD_IP,
-        function(stdout)
-            ip = string.gsub(stdout, '\n', '')
-        end
-    )
+    -- update wifi device info
+    get_wifi_dev_name()
 end
 
 function WBody:update_text(text)
@@ -218,7 +320,7 @@ function WBody:update_text(text)
 end
 
 function WBody:update_icon(text)
-    local icon = ''
+    local icon
     if text == 'online' then
         icon = ICON_ON
     elseif text == 'ready' then
@@ -226,7 +328,7 @@ function WBody:update_icon(text)
     else
         icon = ICON_OFF
     end
-    self.widget:get_children_by_id('icon')[1].image = icon 
+    self.widget:get_children_by_id('icon')[1].image = icon
 end
 
 function WBody:update_tooltip()
@@ -238,7 +340,7 @@ function WBody:update_tooltip()
 
     local text =
     'Сила сигнала:\t\t' .. read_param('Strength')
-    .. '\nSSID точки доступа:\t<span color="GreenYellow"><b>'
+    .. '\nSSID точки доступа:\t<span color="#ebcb8b"><b>'
     ..  read_param('Name') .. '</b></span>'
     ..  '\nСостояние подключения:\t' .. read_param('State')
     .. '\nПолученный от ТД IPv4:\t' .. read_param('IPv4', 'Address')
@@ -251,12 +353,36 @@ function WBody:update_tooltip()
 
     if ip ~= '' and ip ~= nil then
         text = text
-                .. '\nМой внешний ip:\t\t<span color="GreenYellow"><b>'
+                .. '\n\nМой внешний ip:\t\t<span color="#ebcb8b"><b>'
                 .. ip .. '</b></span>'
+    end
+    if country ~= '' and country ~= nil then
+        text = text
+                .. '\nСтрана:\t\t\t<span color="#a3be8c"><b>'
+                .. country .. '</b></span>'
+    end
+
+    if wifi_dev ~= nil
+            and wifi_dev ~= '' then
+        text = text
+                .. '\nСетевой интерфейс:\t' .. wifi_dev
+    end
+    if tx_session ~= nil
+            and rx_session ~= nil then
+        text = text
+                .. '\n\nВсего передано за сессию:'
+                .. '\nTX:\t\t\t' .. human_readable(tx_session)
+                .. '\nRX:\t\t\t' .. human_readable(rx_session)
+    end
+    if tx_bandwidth ~= nil
+            and rx_bandwidth ~= nil then
+        text = text
+                .. '\n\nТекущая скорость соединения:'
+                .. '\nTX:\t\t\t' .. human_readable(tx_bandwidth)
+                .. '\nRX:\t\t\t' .. human_readable(rx_bandwidth)
     end
 
     self.tooltip.markup = text
 end
 
 return setmetatable(WBody, { __call=WBody.new })
-
