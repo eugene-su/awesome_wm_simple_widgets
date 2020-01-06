@@ -51,19 +51,29 @@ local TERM = 'st'
 local CHECKING_INTERVAL = 10
 local CMD_IP = 'curl ifconfig.co/ip'
 local CMD_COUNTRY = 'curl ifconfig.co/country'
-local ICON_ON = gears.filesystem.get_dir('config')
-        .. 'wwifi/connected.png'
-local ICON_BAD = gears.filesystem.get_dir('config')
-        .. 'wwifi/bad_connection.png'
-local ICON_OFF = gears.filesystem.get_dir('config')
-        ..  'wwifi/no_connection.png'
+local ICON_IDLE = gears.filesystem.get_dir('config')
+        ..  'wwifi/idle.png'
+local ICON_ONLINE = gears.filesystem.get_dir('config')
+        .. 'wwifi/online.png'
+local ICON_ONLINE_VPN_ON = gears.filesystem.get_dir('config')
+        .. 'wwifi/online_vpn_on.png'
+local ICON_ONLINE_VPN_OFF = gears.filesystem.get_dir('config')
+        .. 'wwifi/online_vpn_off.png'
+local ICON_ONLINE_VPN_TIMEOUT = gears.filesystem.get_dir('config')
+        .. 'wwifi/online_vpn_timeout.png'
 local TEXT_COLOR = 'Aquamarine' -- web color
 local DEFAULT_TIP = 'Нет информации о подключении'
+local VPN_CONTROL = 'on' -- 'off'
+local VPN_STATE_FILE = '/tmp/.VPN_STATE'
+local VPN_LOG = '/tmp/.VPN_LOG'
+local VPN_SCRIPT = gears.filesystem.get_dir('config')
+        .. 'wwifi/vpn_script.sh'
 
 ------------------------------------------
 
 local ip
 local country
+local vpn_state
 local tx_session
 local rx_session
 local new_tx_session
@@ -78,6 +88,14 @@ local CMD_CONNMAN = TERM .. ' connmanctl'
 local CMD_RX = "cat /proc/net/dev | awk '/wl/ { print $2 }'"
 local CMD_TX = "cat /proc/net/dev | awk '/wl/ { print $10 }'"
 local CMD_WIFI_DEV = "cat /proc/net/dev | awk '/wl/ { print substr($1, 1, length($1)-1) }'"
+local VPN_SCRIPT_NAME = string.gsub(VPN_SCRIPT, "(.*/)(.*)", "%2")
+local RUN_VPN = [[
+    if ! pidof openvpn
+        then ]] .. VPN_SCRIPT .. ' &>' .. VPN_LOG .. [[ &
+    fi]]
+local KILL_VPN = [[
+    sudo kill $(pidof openvpn)
+    killall ]] .. VPN_SCRIPT_NAME
 
 local function connman_parser(text)
   local parameters = {}
@@ -109,7 +127,7 @@ local function connman_parser(text)
 end
 
 local function read_param(...)
-    local vars = {...}
+    local vars = { ... }
     local value
     if #vars == 1 then
         value = wifi_parameters[vars[1]]
@@ -133,6 +151,31 @@ local function get_wifi_dev_name()
     )
 end
 
+local function get_vpn_state()
+    awful.spawn.easy_async_with_shell(
+        'cat ' .. VPN_STATE_FILE,
+        function(stdout)
+            local code = string.gsub(stdout, '\n', '')
+            if code == '0' then
+                vpn_state = 'on'
+            elseif code == '1' then
+                vpn_state = 'off'
+            elseif code == '2' then
+                vpn_state = 'timeout'
+            end
+        end
+    )
+end
+
+local function nil_tx_rx()
+    tx_session = nil
+    rx_session = nil
+    tx_bandwidth = nil
+    rx_bandwidth = nil
+    new_tx_session = nil
+    new_rx_session = nil
+end
+
 local function get_bandwidth()
     if wifi_dev ~= nil
             and wifi_dev ~= '' then
@@ -140,35 +183,37 @@ local function get_bandwidth()
             CMD_TX,
             function(stdout_tx)
                 new_tx_session = string.gsub(stdout_tx, '\n', '')
+                if tx_session == nil then
+                    tx_session = new_tx_session
+                end
             end
         )
         awful.spawn.easy_async_with_shell(
             CMD_RX,
             function(stdout_rx)
                 new_rx_session = string.gsub(stdout_rx, '\n', '')
+                if rx_session == nil then
+                    rx_session = new_rx_session
+                end
             end
         )
-        -- for the first run
-        if tx_session == nil
-                or rx_session == nil then
-            tx_session = new_tx_session
-            rx_session = new_rx_session
-            do return end
-        end
     else
-        tx_session = nil
-        rx_session = nil
-        tx_bandwidth = nil
-        rx_bandwidth = nil
+        nil_tx_rx()
         do return end
     end
-    tx_bandwidth = tonumber(new_tx_session) - tonumber(tx_session)
-    rx_bandwidth = tonumber(new_rx_session) - tonumber(rx_session)
-    tx_session = new_tx_session
-    rx_session = new_rx_session
+    if new_tx_session ~= nil
+            and new_rx_session ~= nil then
+        tx_bandwidth = tonumber(new_tx_session) - tonumber(tx_session)
+        rx_bandwidth = tonumber(new_rx_session) - tonumber(rx_session)
+        tx_session = new_tx_session
+        rx_session = new_rx_session
+    end
 end
 
 local function human_readable(size_in_bytes)
+    if size_in_bytes == nil then
+        return '--'
+    end
     local value
     local number = tonumber(size_in_bytes)
     if number < 1024 then
@@ -212,7 +257,7 @@ function WBody:init()
         layout=wibox.layout.fixed.horizontal,
         {
             widget=wibox.widget.imagebox,
-            image=ICON_ON,
+            image=ICON_ONLINE,
             id='icon'
         },
         {
@@ -240,12 +285,23 @@ function WBody:init()
     -- mouse buttons bindings
     self.widget:buttons(
         gears.table.join(
-            awful.button(
-                {}, 1,
-                function() awful.spawn(CMD_CONNMAN, false) end
+            awful.button({}, 1,
+                function()
+                    awful.spawn(CMD_CONNMAN, false)
+                end
             ),
-            awful.button({}, 2, function() self:get(); get_ip_info() end),
-            awful.button({}, 3, function() self:get(); get_ip_info() end)
+            awful.button({}, 2,
+                function()
+                    self:get()
+                    get_ip_info()
+                end
+            ),
+            awful.button({}, 3,
+                function()
+                    self:get()
+                    get_ip_info()
+                end
+            )
         )
     )
 
@@ -276,10 +332,31 @@ function WBody:init()
     self.widget:connect_signal('mouse::leave',
                                 function()
                                     self.bandwidth_timer:stop()
+                                    nil_tx_rx()
+                                    self:update_tooltip()
                                 end
     )
 
+    -- vpn killer on idle
+    gears.timer { timeout=180,
+                  autostart=true,
+                  callback=function()
+                      if VPN_CONTROL == 'on' then
+                          if read_param('State') ~= 'online'
+                                  and read_param('State') ~= 'ready' then
+                              awful.spawn.with_shell(KILL_VPN)
+                          else
+                              awful.spawn.with_shell(RUN_VPN)
+                          end
+                      end
+                  end
+    }
+
     -- first shot
+    if VPN_CONTROL == 'on' then
+        -- run vpn script in background
+        awful.spawn.with_shell(RUN_VPN)
+    end
     self:get()
     get_ip_info()
     return self
@@ -312,6 +389,10 @@ function WBody:get()
     )
     -- update wifi device info
     get_wifi_dev_name()
+    -- vpn state
+    if VPN_CONTROL == 'on' then
+        get_vpn_state()
+    end
 end
 
 function WBody:update_text(text)
@@ -321,12 +402,22 @@ end
 
 function WBody:update_icon(text)
     local icon
-    if text == 'online' then
-        icon = ICON_ON
-    elseif text == 'ready' then
-        icon = ICON_BAD
+    if text == 'online' or text == 'ready' then
+        icon = ICON_ONLINE
+
+        -- vpn state icon
+        if VPN_CONTROL == 'on' then
+            if vpn_state == 'on' then
+                icon = ICON_ONLINE_VPN_ON
+            elseif vpn_state == 'off' then
+                icon = ICON_ONLINE_VPN_OFF
+            elseif vpn_state == 'timeout' then
+                icon = ICON_ONLINE_VPN_TIMEOUT
+            end
+        end
+
     else
-        icon = ICON_OFF
+        icon = ICON_IDLE
     end
     self.widget:get_children_by_id('icon')[1].image = icon
 end
@@ -339,18 +430,23 @@ function WBody:update_tooltip()
     end
 
     local text =
-    'Сила сигнала:\t\t' .. read_param('Strength')
-    .. '\nSSID точки доступа:\t<span color="#ebcb8b"><b>'
-    ..  read_param('Name') .. '</b></span>'
-    ..  '\nСостояние подключения:\t' .. read_param('State')
-    .. '\nПолученный от ТД IPv4:\t' .. read_param('IPv4', 'Address')
-    .. '\nТип шифрования ключа:\t' .. read_param('Security', 1)
-    .. '\nАвтоподключение:\t' .. read_param('AutoConnect')
-    .. '\nMac-адрес ТД:\t\t' .. read_param('Ethernet', 'Address')
-    .. '\nGateway:\t\t' .. read_param('IPv4', 'Gateway')
-    .. '\nDNS ТД:\t\t\t' .. read_param('Nameservers', 1)
-    .. '\n\t\t\t' .. read_param('Nameservers', 2)
+            'Сила сигнала:\t\t' .. read_param('Strength')
+            .. '\nSSID точки доступа:\t<span color="#ebcb8b"><b>'
+            ..  read_param('Name') .. '</b></span>'
+            ..  '\nСостояние подключения:\t' .. read_param('State')
+            .. '\nПолученный от ТД IPv4:\t' .. read_param('IPv4', 'Address')
+            .. '\nТип шифрования ключа:\t' .. read_param('Security', 1)
+            .. '\nАвтоподключение:\t' .. read_param('AutoConnect')
+            .. '\nMac-адрес ТД:\t\t' .. read_param('Ethernet', 'Address')
+            .. '\nGateway:\t\t' .. read_param('IPv4', 'Gateway')
+            .. '\nDNS ТД:\t\t\t' .. read_param('Nameservers', 1)
+            .. '\n\t\t\t' .. read_param('Nameservers', 2)
 
+    if wifi_dev ~= nil
+            and wifi_dev ~= '' then
+        text = text
+                .. '\nСетевой интерфейс:\t' .. wifi_dev
+    end
     if ip ~= '' and ip ~= nil then
         text = text
                 .. '\n\nМой внешний ip:\t\t<span color="#ebcb8b"><b>'
@@ -362,25 +458,13 @@ function WBody:update_tooltip()
                 .. country .. '</b></span>'
     end
 
-    if wifi_dev ~= nil
-            and wifi_dev ~= '' then
-        text = text
-                .. '\nСетевой интерфейс:\t' .. wifi_dev
-    end
-    if tx_session ~= nil
-            and rx_session ~= nil then
-        text = text
-                .. '\n\nВсего передано за сессию:'
-                .. '\nTX:\t\t\t' .. human_readable(tx_session)
-                .. '\nRX:\t\t\t' .. human_readable(rx_session)
-    end
-    if tx_bandwidth ~= nil
-            and rx_bandwidth ~= nil then
-        text = text
-                .. '\n\nТекущая скорость соединения:'
-                .. '\nTX:\t\t\t' .. human_readable(tx_bandwidth)
-                .. '\nRX:\t\t\t' .. human_readable(rx_bandwidth)
-    end
+    text = text
+            .. '\n\nВсего передано за сессию:'
+            .. '\nTX:\t\t\t' .. human_readable(tx_session)
+            .. '\nRX:\t\t\t' .. human_readable(rx_session)
+            .. '\n\nТекущая скорость соединения:'
+            .. '\nTX:\t\t\t' .. human_readable(tx_bandwidth)
+            .. '\nRX:\t\t\t' .. human_readable(rx_bandwidth)
 
     self.tooltip.markup = text
 end
