@@ -3,7 +3,7 @@
 System volume widget for awesome wm.
 'alsa-utils' is required.
 Tested with Lua 5.3.5.
-Copyright (c) 2019 Evgeny.
+Copyright (c) 2019 Eugene Bakhtin <mail@eugene.su>.
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
