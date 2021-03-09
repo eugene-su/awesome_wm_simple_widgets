@@ -11,7 +11,7 @@ Usage:
         local my%widgetname% = %widgetname%()
         ...
 ```
-&ensp;&ensp;&ensp;&ensp;Then inscribe 'my%widgetname%.widget' to s.mywibox:  
+&ensp;&ensp;&ensp;&ensp;Then inscribe `my%widgetname%.widget` to s.mywibox:  
 ```lua
         ...
         mysystray,
